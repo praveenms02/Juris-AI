@@ -23,8 +23,8 @@ Pillow==11.0.0
 
 # Phase 2 — summarization, NER, analysis
 transformers==4.47.1
-torch==2.5.1
-spacy==3.8.3
+torch==2.6.0
+spacy==3.8.14
 
 # Phase 3 — RAG chat (optional OpenAI)
 langchain-openai==0.2.14

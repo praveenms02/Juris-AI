@@ -49,15 +49,15 @@ async function analyzeDocument({ documentId, extractedText, explanationMode = "n
 }
 
 /**
- * Phase 3 — RAG chat over document chunks.
+ * Phase 3 — Legal Q&A (top-5 RAG, citations, memory).
  */
 async function chatWithDocument({
   userId,
   documentId,
   query,
   chatHistory = [],
-  documentSummary = "",
-  entities = {},
+  clauses = [],
+  topK = 5,
 }) {
   const response = await axios.post(
     `${getAiBaseUrl()}/chat`,
@@ -66,12 +66,53 @@ async function chatWithDocument({
       document_id: documentId,
       query,
       chat_history: chatHistory,
-      document_summary: documentSummary,
-      entities,
-      top_k: Number(process.env.RAG_TOP_K || 3),
+      clauses,
+      top_k: topK,
     },
     {
       timeout: 5 * 60 * 1000,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+
+  return response.data;
+}
+
+/**
+ * Document intelligence modes — explain, study, quiz, topics.
+ */
+async function runIntelligence({
+  userId,
+  documentId,
+  mode,
+  query = "",
+  chatHistory = [],
+  extractedText = "",
+  documentSummary = "",
+  shortSummary = "",
+  entities = {},
+  clauses = [],
+  risks = [],
+  topK = 5,
+}) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/intelligence`,
+    {
+      user_id: userId,
+      document_id: documentId,
+      mode,
+      query,
+      chat_history: chatHistory,
+      extracted_text: extractedText,
+      document_summary: documentSummary,
+      short_summary: shortSummary,
+      entities,
+      clauses,
+      risks,
+      top_k: topK,
+    },
+    {
+      timeout: 10 * 60 * 1000,
       headers: { "Content-Type": "application/json" },
     }
   );
@@ -91,9 +132,91 @@ async function purgeDocument(documentId) {
   }
 }
 
+/** Phase 5 — study notes generation */
+async function generateStudyNotes({
+  documentId,
+  extractedText,
+  summary,
+  shortSummary,
+  clauses,
+  entities,
+  noteType = "revision",
+}) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/generate-study-notes`,
+    {
+      document_id: documentId,
+      extracted_text: extractedText,
+      summary: summary || "",
+      short_summary: shortSummary || "",
+      clauses: clauses || [],
+      entities: entities || {},
+      note_type: noteType,
+    },
+    { timeout: 5 * 60 * 1000, headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/** Phase 5 — clause explanation */
+async function explainClause({ clauseText, clauseTitle }) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/explain-clause`,
+    { clause_text: clauseText, clause_title: clauseTitle || "Clause" },
+    { timeout: 2 * 60 * 1000, headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/** Phase 5 — quiz generation */
+async function generateQuiz({ documentId, extractedText, clauses, entities, numQuestions = 8 }) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/generate-quiz`,
+    {
+      document_id: documentId,
+      extracted_text: extractedText,
+      clauses: clauses || [],
+      entities: entities || {},
+      num_questions: numQuestions,
+    },
+    { timeout: 5 * 60 * 1000, headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/** Phase 5 — quiz evaluation */
+async function evaluateQuiz({ questions, answers }) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/evaluate-quiz`,
+    { questions, answers },
+    { timeout: 2 * 60 * 1000, headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
+/** Phase 5 — learning topic suggestions */
+async function suggestLearningTopics({ extractedText, clauses, entities }) {
+  const response = await axios.post(
+    `${getAiBaseUrl()}/suggest-learning-topics`,
+    {
+      extracted_text: extractedText || "",
+      clauses: clauses || [],
+      entities: entities || {},
+    },
+    { timeout: 2 * 60 * 1000, headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
 module.exports = {
   processDocument,
   analyzeDocument,
   chatWithDocument,
+  runIntelligence,
   purgeDocument,
+  generateStudyNotes,
+  explainClause,
+  generateQuiz,
+  evaluateQuiz,
+  suggestLearningTopics,
 };

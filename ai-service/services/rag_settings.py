@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 
-_DEFAULT_TOP_K = 3
+_DEFAULT_TOP_K = 5
 _DEFAULT_DISTANCE_THRESHOLD = 0.75
 
 

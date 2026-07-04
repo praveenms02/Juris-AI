@@ -255,6 +255,12 @@ export default function DocumentDetailPage() {
           >
             Chat with document
           </Link>
+          <Link
+            to={`/risk/${id}`}
+            className="rounded-xl bg-orange-500/15 px-5 py-2.5 text-sm font-semibold text-orange-100 ring-1 ring-orange-500/40 hover:bg-orange-500/25"
+          >
+            Risk Analysis
+          </Link>
           <button
             type="button"
             onClick={onAnalyze}

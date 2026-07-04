@@ -1,49 +1,95 @@
 """
-Prompt templates for legal RAG chat.
+Prompt templates for document intelligence modes.
 """
 
 from __future__ import annotations
 
-RETRIEVED_CONTEXT_HEADER = "[RETRIEVED CONTEXT — use this for factual answers]"
-METADATA_HEADER = "[DOCUMENT METADATA — treat as supplementary, not authoritative]"
+FALLBACK_INSTRUCTION = (
+    "If the answer is unavailable, say exactly:\n"
+    "'The uploaded document does not contain this information.'"
+)
 
-LEGAL_RAG_SYSTEM = """\
-You are JurisAI, a precise legal document assistant.
-
-Rules:
-- Answer ONLY using the context below. Never use outside knowledge.
-- If the answer is not in the context, respond exactly: "Not available in document."
-- Do NOT guess, infer, or hallucinate. Quote exact figures and clauses.
-
-{METADATA_HEADER}
-Summary: {document_summary}
-Key Details: {key_details}
-
-{RETRIEVED_CONTEXT_HEADER}
-{context}
-
-Question: {query}
-
-Answer concisely using simple legal language. Reference specific clauses when possible.\
-""".replace("{METADATA_HEADER}", METADATA_HEADER).replace("{RETRIEVED_CONTEXT_HEADER}", RETRIEVED_CONTEXT_HEADER)
+LEGAL_SYSTEM = """You are a legal document assistant.
+Answer ONLY using the retrieved document context.
+Never invent information.
+If the answer is unavailable, say:
+'The uploaded document does not contain this information.'
+Always cite the clause or paragraph when possible.
+Use simple, clear English."""
 
 
-def build_rag_prompt(
-    *,
-    context: str,
-    question: str,
-    chat_history: str = "",
-    document_summary: str = "",
-    key_details: str = "",
-) -> str:
-    """
-    Build the full prompt sent to the LLM.
+def build_legal_prompt(*, context: str, question: str, chat_history: str = "") -> str:
+    """Mode 1 — Legal Q&A with conversational memory."""
+    parts = [LEGAL_SYSTEM, ""]
+    if chat_history:
+        parts.extend(["Previous conversation (use for pronouns like 'he', 'his', 'they'):", chat_history, ""])
+    parts.extend([
+        "Context:",
+        context or "(No passages retrieved.)",
+        "",
+        f"Question:\n{question}",
+        "",
+        "Instructions:\nAnswer ONLY using the context above. Cite the relevant clause when possible.",
+    ])
+    return "\n".join(parts)
 
-    Uses strict context-only approach to prevent hallucination.
-    """
-    return LEGAL_RAG_SYSTEM.format(
-        context=context,
-        query=question,
-        document_summary=document_summary or "None",
-        key_details=key_details or "None",
-    )
+
+EXPLAIN_SYSTEM = """You are an expert legal analyst.
+
+Explain this document for a non-lawyer.
+
+Include:
+Document type
+Purpose
+Parties
+Duration
+Financial obligations
+Rights
+Responsibilities
+Penalties
+Termination
+Important clauses
+Risks
+Overall summary
+
+Explain using simple language."""
+
+
+def build_explain_prompt(*, context: str) -> str:
+    """Mode 2 — Full document explanation."""
+    return f"{EXPLAIN_SYSTEM}\n\nDocument context:\n{context}\n\nProvide a complete structured explanation."
+
+
+STUDY_SYSTEM = """You are an AI study assistant.
+
+Create concise study notes from the document context.
+
+Generate:
+Executive Summary
+Key Facts
+Important Clauses
+Timeline
+Numbers
+People
+Flashcards (Q&A pairs)
+Revision Notes
+Memory Tips
+
+Use bullet points. Be concise."""
+
+
+def build_study_prompt(*, context: str) -> str:
+    return f"{STUDY_SYSTEM}\n\nDocument context:\n{context}\n\nCreate study material."
+
+
+TOPICS_SYSTEM = """You are a legal document analyst.
+
+Extract all major legal topics from the context and organize them into a navigation tree.
+
+For each topic provide: Title, Summary, Keywords, Related clause references.
+
+Use simple language."""
+
+
+def build_topics_prompt(*, context: str) -> str:
+    return f"{TOPICS_SYSTEM}\n\nDocument context:\n{context}\n\nList all major topics."

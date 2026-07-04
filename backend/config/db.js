@@ -12,11 +12,17 @@ async function connectDB() {
 
   mongoose.set("strictQuery", true);
 
-  await mongoose.connect(uri, {
-    // Modern driver defaults are fine; keep options minimal for clarity.
-  });
-
-  console.log("MongoDB connected");
+  try {
+    await mongoose.connect(uri);
+    console.log("MongoDB connected");
+  } catch (err) {
+    if (err.name === "MongooseServerSelectionError" || err.message?.includes("ECONNREFUSED")) {
+      console.error("\nMongoDB is not running or not reachable at the URI in MONGODB_URI.");
+      console.error("Start it locally (macOS Homebrew): brew services start mongodb-community");
+      console.error(`Current URI: ${uri}\n`);
+    }
+    throw err;
+  }
 }
 
 module.exports = { connectDB };
